@@ -10,7 +10,7 @@ Saves point-in-time snapshots of the [Claude pricing page](https://platform.clau
 ## Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/aaortiz/model-pricing.git
 cd model-pricing
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
@@ -50,6 +50,16 @@ Files are named `claude-model-pricing-YYYY-MM-DD.json`. Each one is the raw Exa 
 | `costDollars` | What the API call cost |
 
 The snapshots in this repo are provided for reference. Pricing content belongs to Anthropic; check the live pricing page for current prices.
+
+## Cost model page
+
+`index.html` is an interactive Agentic Session Cost Model built on the snapshot prices. It compares what a long agentic session costs on Opus 5.5 against other Claude models, and includes the June to October 2026 price history.
+
+It is a single self-contained file with no build step and needs no API key. Open it in a browser:
+
+```bash
+open index.html             # macOS; on Windows or Linux, double-click the file
+```
 
 ## License
 

@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agentic Session Cost Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a quiet reading column for the argument (serif headlines, gray body copy, hairline rules), then a wider instrument panel for the model itself. */
+:root{
+  --bg:#fcfcfc; --surface:#ffffff; --surface-2:#f1f1f0; --ink:#282828; --ink-2:#6b6b6b; --ink-3:#8f8f8f; --rule:#e6e6e5;
+  --accent:#246bfd; --accent-soft:#eaf0ff;
+  --l1:#c2501a; --l2:#246bfd; --l3:#58524e; --l4:#8aa9f0;
+  --font-display:"Newsreader", Georgia, "Times New Roman", serif;
+  --font-body:"Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-data:"Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a0a0a; --surface:#131313; --surface-2:#1d1d1d; --ink:#ededed; --ink-2:#a1a1a1; --ink-3:#737373; --rule:#262626;
+    --accent:#6b9bff; --accent-soft:#15213b;
+    --l1:#f0884d; --l2:#6b9bff; --l3:#b5aca4; --l4:#bccdf7; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a0a0a; --surface:#131313; --surface-2:#1d1d1d; --ink:#ededed; --ink-2:#a1a1a1; --ink-3:#737373; --rule:#262626;
+  --accent:#6b9bff; --accent-soft:#15213b;
+  --l1:#f0884d; --l2:#6b9bff; --l3:#b5aca4; --l4:#bccdf7; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.topbar{display:flex; justify-content:flex-end; margin-bottom:12px}
+.theme-btn{font:inherit; font-size:13.5px; display:inline-flex; align-items:center; gap:7px; color:var(--ink-2); background:var(--surface); border:1px solid var(--rule); border-radius:999px; padding:6px 13px; cursor:pointer}
+.theme-btn:hover{color:var(--ink); border-color:var(--ink-3)}
+.theme-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.theme-btn svg{width:15px; height:15px; flex:none}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.55; margin:0; -webkit-font-smoothing:antialiased}
+.wrap{max-width:680px; margin:0 auto; padding-inline:20px; padding-block:28px 72px; display:flex; flex-direction:column; gap:32px}
+.wrap > header.top, .wrap > .case, .wrap > .footnote, .wrap > .howto{width:100%; max-width:640px; align-self:center}
+h1,h2,h3{text-wrap:balance; margin:0; letter-spacing:normal}
+h1,h2{font-family:var(--font-display); font-weight:400}
+h1{font-size:clamp(36px,6vw,52px); line-height:1.06; text-align:center}
+h2{font-size:22px; line-height:1.22}
+h3{font-family:var(--font-body); font-size:15px; font-weight:500}
+p{margin:0}
+.lede{color:var(--ink-2); font-size:16px; line-height:1.6}
+.lede::first-letter{font-family:var(--font-display); float:left; font-size:3.5em; line-height:.82; padding:6px 10px 0 0; color:var(--ink)}
+header.top{display:flex; flex-direction:column; gap:40px}
+.num{font-family:var(--font-data); font-variant-numeric:tabular-nums}
+
+/* How to use */
+.step-h{margin-bottom:-14px}
+.step-head{display:flex; flex-direction:column; gap:6px; margin-bottom:-14px; padding-top:24px}
+.step-head h2, .step-h{font-size:28px}
+.step-desc{font-size:15px; color:var(--ink-2); max-width:68ch}
+.sub-h{font-size:14px; font-weight:500; color:var(--ink-2); letter-spacing:0}
+.howto{display:flex; flex-direction:column; gap:12px}
+.steps{margin:0; padding-left:1.4em; list-style:decimal}
+.steps li{padding-left:2px; font-size:15px; color:var(--ink); margin-top:4px}
+.steps li::marker{color:var(--ink-2); font-variant-numeric:tabular-nums}
+.steps b{font-weight:400}
+.steps a{color:var(--ink); text-decoration:underline; text-decoration-color:var(--rule); text-underline-offset:3px; text-decoration-thickness:1px}
+.steps a:hover{text-decoration-color:var(--ink-2)}
+.steps a:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+.step-head h2{scroll-margin-top:24px}
+
+/* Thesis strip */
+.case{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:0 32px; border-block:1px solid var(--rule)}
+.case > div{padding:24px 0; display:flex; flex-direction:column; gap:8px; min-width:0}
+@media (min-width:600px){ .case > div + div{border-left:1px solid var(--rule); padding-left:32px; margin-left:-32px} }
+.case .big{font-family:var(--font-display); font-size:44px; font-weight:400; line-height:1.05; letter-spacing:-0.01em}
+.case .big.hl{color:var(--l1)}
+.case .kn-label{font-size:15px; font-weight:500; line-height:1.35; color:var(--ink)}
+.case p{color:var(--ink-2); font-size:14px}
+.footnote{font-size:13px; color:var(--ink-3); margin-top:-16px}
+
+/* Controls */
+.controls{display:flex; flex-wrap:wrap; gap:14px 22px; align-items:center; padding:14px 16px; background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius)}
+.ctl{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.ctl-label{font-size:13.5px; font-weight:400; color:var(--ink-3)}
+.seg{display:inline-flex; background:var(--surface-2); border-radius:999px; padding:3px; gap:2px}
+.seg button{font:inherit; font-size:13.5px; font-weight:400; border:0; background:transparent; color:var(--ink-2); padding:6px 14px; border-radius:999px; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+.seg button:focus-visible, .chip:focus-visible, .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.chip{font:inherit; font-size:13px; border:1px solid var(--rule); background:var(--surface); color:var(--ink); padding:5px 11px; border-radius:999px; cursor:pointer}
+.chip:hover{border-color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--bg); font-weight:400}
+.chip[aria-pressed="true"]::before{content:"✓ "}
+.chip[aria-pressed="true"]:hover{color:var(--bg)}
+.toggle-row{flex-basis:100%; justify-content:flex-start; gap:10px 22px}
+.shared-in{flex-basis:100%; min-width:0; border-top:1px solid var(--rule); padding-top:14px; display:flex; flex-direction:column; gap:14px}
+.shared-in .panel-head p{color:var(--ink-3); font-size:13px}
+.preset-custom{font-size:13px; color:var(--ink-3); font-style:italic}
+.switch{display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; font-weight:400}
+.switch input{appearance:none; width:36px; height:20px; border-radius:999px; background:var(--rule); position:relative; cursor:pointer; margin:0; transition:background .15s}
+.switch input::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--surface); transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked{background:var(--l1)}
+.switch input:checked::after{transform:translateX(16px)}
+.switch input:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* Param panels */
+.panel h2{font-size:21px}
+.panel{background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius); padding:20px 22px; display:flex; flex-direction:column; gap:14px}
+.panel-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap}
+.panel-head p{color:var(--ink-3); font-size:13px}
+.sliders{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px 26px}
+.slider{display:flex; flex-direction:column; gap:4px; min-width:0}
+.slider-head{display:flex; justify-content:space-between; gap:10px; align-items:baseline}
+.slider-head label{font-size:13.5px; color:var(--ink-2)}
+.slider-head output{font-family:var(--font-data); font-size:13.5px; font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap}
+input[type="range"]{width:100%; accent-color:var(--l1); margin:4px 0}
+fieldset.ttl{border:0; padding:0; margin:0; display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+fieldset.ttl legend{float:left; font-size:13.5px; color:var(--ink-2); margin-right:4px; padding:0}
+fieldset.ttl label{font-size:13.5px; display:inline-flex; gap:5px; align-items:center; cursor:pointer}
+fieldset.ttl input{accent-color:var(--l1); margin:0}
+.derived{font-size:13px; color:var(--ink-3); font-family:var(--font-data); font-variant-numeric:tabular-nums}
+
+/* Lanes */
+.lanes{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px}
+.lane{background:var(--surface); border:1px solid var(--rule); border-top:2px solid var(--lc); border-radius:var(--radius); padding:14px 16px 16px; display:flex; flex-direction:column; gap:10px; min-width:0}
+.lane.is-focus{background:color-mix(in srgb, var(--lc) 6%, var(--surface))}
+.lane-name{flex:1; min-width:0; font-family:var(--font-display); font-weight:400; font-size:21px; line-height:1.2; padding:4px 2px}
+.lane-ratio.cmp{flex-direction:column; align-items:flex-start; gap:4px}
+.lane-ratio .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.lane-top{display:flex; align-items:center; gap:8px}
+.lane-top select{flex:1; min-width:0; font-family:var(--font-display); font-weight:400; font-size:21px; line-height:1.2; color:var(--ink); background:transparent; border:1px solid var(--rule); border-radius:8px; padding:2px 6px; cursor:pointer}
+.lane-top select:hover{border-color:var(--ink-3)}
+.lane-top select option{font-family:var(--font-body); font-size:15px; color:var(--ink); background:var(--surface)}
+.lane-top select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.icon-btn{font:inherit; font-size:12.5px; border:1px solid var(--rule); background:transparent; color:var(--ink-3); border-radius:6px; padding:4px 8px; cursor:pointer}
+.icon-btn:hover{color:var(--ink); border-color:var(--ink-3)}
+.lane-cost{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.lane-cost .big{font-family:var(--font-data); font-size:28px; font-weight:400; letter-spacing:-0.02em; font-variant-numeric:tabular-nums}
+.lane-cost .unit{font-size:12.5px; color:var(--ink-3)}
+.lane-ratio{display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13.5px}
+.pill{font-family:var(--font-data); font-size:12.5px; padding:2px 8px; border-radius:999px; background:var(--surface-2); color:var(--ink); font-variant-numeric:tabular-nums}
+.pill.base{background:color-mix(in srgb, var(--lc) 18%, var(--surface)); color:var(--ink)}
+.pill.cheaper{background:color-mix(in srgb, #1f9d55 18%, var(--surface))}
+.pill.worse{background:color-mix(in srgb, #d14343 16%, var(--surface))}
+.lane-ratio .sub{color:var(--ink-3); font-size:12.5px}
+.bar{display:flex; height:12px; border-radius:4px; overflow:hidden; background:var(--surface-2)}
+.bar span{display:block; height:100%}
+.comps{display:grid; grid-template-columns:auto 1fr auto; gap:3px 8px; margin:0; font-size:12.5px; align-items:center}
+.comps dt{display:contents}
+.comps .sw{width:9px; height:9px; border-radius:2px}
+.comps .lbl{color:var(--ink-2)}
+.comps dd{margin:0; font-family:var(--font-data); font-variant-numeric:tabular-nums; text-align:right}
+.lane-foot{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px}
+.lane-foot label{display:inline-flex; align-items:center; gap:6px; cursor:pointer; color:var(--ink-2)}
+.lane-foot input{accent-color:var(--lc); margin:0}
+.lane details{border-top:1px solid var(--rule); padding-top:10px}
+.lane details summary{cursor:pointer; font-size:13px; font-weight:500; color:var(--ink-2)}
+.lane details .sliders{grid-template-columns:1fr; gap:10px; margin-top:10px}
+.lane details .derived{margin-top:8px}
+.lane details fieldset{margin-top:10px}
+.add-lane{border:1.5px dashed var(--rule); border-radius:var(--radius); background:transparent; color:var(--ink-3); font:inherit; font-weight:400; cursor:pointer; min-height:120px}
+.add-lane:hover{border-color:var(--accent); color:var(--accent)}
+.legend-key{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-3)}
+.legend-key span{display:inline-flex; align-items:center; gap:6px}
+.legend-key i{display:inline-block; width:10px; height:10px; border-radius:2px}
+
+/* Gap section */
+.gap{display:grid; grid-template-columns:minmax(0,1fr); gap:16px}
+@media (max-width:900px){ .gap{grid-template-columns:minmax(0,1fr)} }
+.chart-card{position:relative}
+.chart-sub{font-size:13px; color:var(--ink-3)}
+.chart-legend{display:flex; gap:12px 16px; flex-wrap:wrap; font-size:13px}
+.chart-legend span{display:inline-flex; align-items:center; gap:6px}
+.chart-legend i{width:14px; height:3px; border-radius:2px; display:inline-block}
+.chart-wrap{position:relative; overflow-x:auto}
+#chart{width:100%; min-width:520px; height:auto; display:block; touch-action:pan-y}
+#chart text{font-family:var(--font-data); font-size:var(--axis-fs,11.5px)}
+.tip{position:absolute; top:8px; pointer-events:none; background:var(--surface); border:1px solid var(--rule); border-radius:8px; padding:8px 10px; font-size:12.5px; box-shadow:0 6px 18px rgba(0,0,0,.12); min-width:170px; white-space:nowrap; z-index:2}
+.tip .t-head{font-family:var(--font-data); color:var(--ink-3); margin-bottom:4px; font-size:12px}
+.tip .t-row{display:flex; justify-content:space-between; gap:12px; align-items:center}
+.tip .t-row b{font-family:var(--font-data); font-weight:500; font-variant-numeric:tabular-nums}
+.tip i{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px}
+.gap-notes{display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--rule); padding-top:14px}
+.gap-notes ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; font-size:13.5px; color:var(--ink-2)}
+.gap-notes li{display:flex; gap:8px; align-items:baseline}
+.gap-notes li i{flex:none; width:12px; height:3px; border-radius:2px; transform:translateY(-3px)}
+.gap-notes b{font-weight:500; color:var(--ink)}
+.meter{display:flex; flex-direction:column; gap:8px; padding-bottom:16px; border-bottom:1px solid var(--rule)}
+.meter:last-child{border-bottom:0; padding-bottom:0}
+.meter h3 span{color:var(--ink-3); font-weight:500}
+.meter svg{width:100%; height:auto; display:block}
+.meter svg text{font-family:var(--font-data); font-size:11px}
+.meter .story{font-size:13.5px; color:var(--ink-2)}
+.meter .story b{font-family:var(--font-data); font-weight:500; color:var(--ink)}
+.meter .rest{font-size:12.5px; color:var(--ink-3)}
+.meter .rest-bar{display:flex; height:8px; border-radius:3px; overflow:hidden; background:var(--surface-2)}
+.meter .rest-bar span{height:100%}
+.glyphs{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12.5px; color:var(--ink-3)}
+.glyphs span{display:inline-flex; gap:5px; align-items:center}
+.glyphs b{font-family:var(--font-data); font-weight:500; color:var(--ink)}
+
+/* Reference */
+.ref{display:grid; grid-template-columns:minmax(0,1fr); gap:16px}
+@media (max-width:900px){ .ref{grid-template-columns:minmax(0,1fr)} }
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:560px}
+th,td{padding:7px 10px; text-align:right; border-bottom:1px solid var(--rule); white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12.5px; font-weight:400; color:var(--ink-3)}
+td{font-family:var(--font-data); font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--font-body); font-weight:500}
+td .note{display:block; font-family:var(--font-body); font-weight:400; font-size:11.5px; color:var(--ink-3)}
+tr.grp th{text-align:left; padding-top:16px; font-size:12.5px; font-weight:500; color:var(--ink-2); border-bottom:1px solid var(--rule)}
+tr.grp:first-child th{padding-top:4px}
+td.hl{color:var(--l1); font-weight:500}
+td .hl-name{color:var(--l1)}
+ul.limits{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:7px; font-size:13.5px; color:var(--ink-2)}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><button type="button" class="theme-btn" id="theme-toggle" aria-label="Switch color theme"></button></div>
+  <header class="top">
+    <h1>Agentic Session Cost Model</h1>
+    <p class="lede">Long agentic sessions are mostly cache reads, because every turn re-reads the conversation so far. Opus 5.5 charges the same for a cache read as Sonnet 5.5, so the longer a session runs, the smaller the price gap between them. Earlier Opus models never had this property.</p>
+  </header>
+
+  <section class="case" aria-label="Key numbers">
+    <div>
+      <span class="big num hl">100% → 22%</span>
+      <span class="kn-label">Opus 5.5's premium over Sonnet 5.5 shrinks as agentic sessions get longer</span>
+      <p>From a one-turn task to a 200-turn session (50% at 50 turns).</p>
+    </div>
+    <div>
+      <span class="big num hl">67%</span>
+      <span class="kn-label">More usage on Opus 5.5 vs. Opus 5</span>
+      <p>Usage per dollar in a 50-turn session. At 200 turns it reaches 105% more.</p>
+    </div>
+  </section>
+  <p class="footnote">Assumes a 20k-token starting context, 2k tokens in and 1k out per turn, and 5-minute cache writes.</p>
+
+  <section class="howto" aria-labelledby="howto-title">
+    <h2 id="howto-title">How to use the model</h2>
+    <ol class="steps" aria-labelledby="howto-title">
+      <li><a href="#step1-title" data-jump="step1-title">Pick a session length</a></li>
+      <li><a href="#step2-title" data-jump="step2-title">See what each model costs</a></li>
+      <li><a href="#step3-title" data-jump="step3-title">Watch the Opus 5.5 premium shrink</a></li>
+    </ol>
+  </section>
+
+  <div class="step-head">
+    <h2 id="step1-title">1. Pick a session length</h2>
+    <p class="step-desc">Start from a preset. Turn on Advanced options to set turns, tokens and other details yourself.</p>
+  </div>
+  <section class="controls" aria-label="Model controls">
+    <div class="ctl adv" hidden>
+      <span class="ctl-label">Workload</span>
+      <div class="seg" role="group" aria-label="Workload input mode">
+        <button type="button" id="mode-session" data-mode="session">Session builder</button>
+        <button type="button" id="mode-mix" data-mode="mix">Token mix</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">Presets</span>
+      <div id="presets" class="ctl"></div>
+    </div>
+    <div class="ctl toggle-row">
+      <label class="switch"><input type="checkbox" id="adv-toggle"> Advanced options</label>
+      <label class="switch adv" hidden><input type="checkbox" id="sync-toggle" checked> Same workload for all models</label>
+      <label class="switch adv" hidden><input type="checkbox" id="us-toggle"> US-only processing (1.1×)</label>
+    </div>
+    <div id="shared-panel" class="shared-in" aria-label="Session settings" hidden></div>
+  </section>
+
+  <div class="step-head">
+    <h2 id="step2-title">2. See what each model costs</h2>
+    <p class="step-desc">Opus 5.5 is compared with up to three other models. Each card shows how much Opus 5.5 costs, and how much usage it gives, relative to that model.</p>
+  </div>
+  <section aria-label="Models compared" style="display:flex;flex-direction:column;gap:10px">
+    <div id="lanes" class="lanes"></div>
+  </section>
+
+  <div class="step-head">
+    <h2 id="step3-title">3. Watch the Opus 5.5 premium shrink</h2>
+    <p class="step-desc">Each line shows Opus 5.5's relative cost: its cost divided by that model's. Above the 1× line, Opus 5.5 costs more; below it, Opus 5.5 costs less.</p>
+  </div>
+  <section class="gap" aria-label="How the gap closes">
+    <div class="panel chart-card">
+      <div class="panel-head">
+        <p id="chart-sub" class="chart-sub"></p>
+        <div class="seg" role="group" aria-label="Chart metric">
+          <button type="button" data-metric="ratio">Opus 5.5 vs each model</button>
+          <button type="button" data-metric="cost">Cost per MTok</button>
+        </div>
+      </div>
+      <div id="chart-legend" class="chart-legend"></div>
+      <div class="chart-wrap" id="chart-wrap">
+        <svg id="chart" viewBox="0 0 760 390" role="img" aria-label="Cost ratio chart"></svg>
+        <div id="tip" class="tip" hidden></div>
+      </div>
+      <div class="gap-notes">
+        <h3>What keeps each gap open</h3>
+        <ul id="meters"></ul>
+      </div>
+    </div>
+  </section>
+
+  <h2 class="step-h" id="appendix-title">Appendix</h2>
+  <section class="ref" aria-label="Reference">
+    <div class="panel">
+      <div class="panel-head" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <h2>Claude API prices</h2>
+        <p>Per million tokens, as listed on the Claude pricing page on Oct 1, 2026.</p>
+      </div>
+      <div class="table-wrap"><table id="price-table"></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <h2>Price history, June to October 2026</h2>
+        <p>Gathered with Exa snapshots of the Claude pricing page on the 1st of each month. No listed price changed between snapshots, so each model appears once, under the month it was first listed.</p>
+      </div>
+      <div class="table-wrap"><table class="hist-table"><thead><tr><th>Model</th><th>Cache read</th><th>Input</th><th>Output</th><th>5m write</th><th>1h write</th></tr></thead><tbody><tr class="grp"><th colspan="6">Listed from Jun 1</th></tr><tr><td>Opus 4.7</td><td>$0.50</td><td>$5</td><td>$25</td><td>$6.25</td><td>$10</td></tr><tr><td>Opus 4.6</td><td>$0.50</td><td>$5</td><td>$25</td><td>$6.25</td><td>$10</td></tr><tr><td>Opus 4.5</td><td>$0.50</td><td>$5</td><td>$25</td><td>$6.25</td><td>$10</td></tr><tr><td>Opus 4.1<span class="note">Deprecated Aug 1, retired Sep 1</span></td><td>$1.50</td><td>$15</td><td>$75</td><td>$18.75</td><td>$30</td></tr><tr><td>Opus 4<span class="note">Deprecated, then retired Aug 1</span></td><td>$1.50</td><td>$15</td><td>$75</td><td>$18.75</td><td>$30</td></tr><tr><td>Sonnet 4.6</td><td>$0.30</td><td>$3</td><td>$15</td><td>$3.75</td><td>$6</td></tr><tr><td>Sonnet 4.5</td><td>$0.30</td><td>$3</td><td>$15</td><td>$3.75</td><td>$6</td></tr><tr><td>Sonnet 4<span class="note">Deprecated, then retired Aug 1</span></td><td>$0.30</td><td>$3</td><td>$15</td><td>$3.75</td><td>$6</td></tr><tr><td>Haiku 4.5</td><td>$0.10</td><td>$1</td><td>$5</td><td>$1.25</td><td>$2</td></tr><tr><td>Haiku 3.5<span class="note">Already retired</span></td><td>$0.08</td><td>$0.80</td><td>$4</td><td>$1</td><td>$1.60</td></tr><tr class="grp"><th colspan="6">Added Aug 1</th></tr><tr><td>Fable 5</td><td>$1.00</td><td>$10</td><td>$50</td><td>$12.5</td><td>$20</td></tr><tr><td>Opus 4.8<span class="note">First listed by name</span></td><td>$0.50</td><td>$5</td><td>$25</td><td>$6.25</td><td>$10</td></tr><tr><td>Sonnet 5<span class="note">Introductory price through Aug 31</span></td><td>$0.20</td><td>$2</td><td>$10</td><td>$2.5</td><td>$4</td></tr><tr><td>Sonnet 5<span class="note">Planned from Sep 1; never took effect</span></td><td>$0.30</td><td>$3</td><td>$15</td><td>$3.75</td><td>$6</td></tr><tr class="grp"><th colspan="6">Added Sep 1</th></tr><tr><td>Opus 5</td><td>$0.50</td><td>$5</td><td>$25</td><td>$6.25</td><td>$10</td></tr><tr class="grp"><th colspan="6">Added Oct 1</th></tr><tr><td>Fable 5.1</td><td>$0.25</td><td>$10</td><td>$50</td><td>$12.5</td><td>$20</td></tr><tr><td>Opus 5.5</td><td>$0.20</td><td>$4</td><td>$20</td><td>$5</td><td>$8</td></tr><tr><td>Sonnet 5.5</td><td>$0.20</td><td>$2</td><td>$10</td><td>$2.5</td><td>$4</td></tr></tbody></table></div>
+      <p class="footnote" style="margin-top:0">The June to September snapshots were served from Exa's cache; October was a fresh crawl.</p>
+    </div>
+    <div class="panel">
+      <h2>What this model can't show</h2>
+      <ul class="limits">
+        <li>Subscription plan limits. These are API prices, and plans may not scale exactly with API cost.</li>
+        <li>Tokens used per task. If one model finishes work in fewer tokens, that changes the real cost per task.</li>
+        <li>Output quality. The cost side of the argument stands on its own; the quality side needs other evidence.</li>
+        <li>Compaction and cache misses. The session builder assumes every turn reads the full cached history. Compacting a long session or missing the cache would change that. Use the token mix under Advanced options to add fresh input.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+const MODELS = {
+  fable51:{name:"Fable 5.1", in:10, w5:12.5, w1:20, read:0.25, out:50, geo:true, note:""},
+  fable5:{name:"Fable 5", in:10, w5:12.5, w1:20, read:1, out:50, geo:true, note:""},
+  opus55:{name:"Opus 5.5", in:4, w5:5, w1:8, read:0.20, out:20, geo:true, note:""},
+  opus5:{name:"Opus 5", in:5, w5:6.25, w1:10, read:0.50, out:25, geo:true, note:""},
+  son55:{name:"Sonnet 5.5", in:2, w5:2.5, w1:4, read:0.20, out:10, geo:true, note:""},
+  son5:{name:"Sonnet 5", in:2, w5:2.5, w1:4, read:0.20, out:10, geo:true, note:""},
+  son46:{name:"Sonnet 4.6", in:3, w5:3.75, w1:6, read:0.30, out:15, geo:true, note:""},
+  haiku45:{name:"Haiku 4.5", in:1, w5:1.25, w1:2, read:0.10, out:5, geo:false, note:""}
+};
+const ORDER = ["fable51","fable5","opus55","opus5","son55","son5","son46","haiku45"];
+
+const SESSION_SLIDERS = [
+  {k:"turns", label:"Turns in the session", min:1, max:250, step:1, fmt:v=>v+" turns"},
+  {k:"start", label:"Starting context (system prompt, tools)", min:0, max:100, step:1, fmt:v=>v+"k tokens"},
+  {k:"perIn", label:"New input per turn (messages, tool results)", min:0.2, max:20, step:0.1, fmt:v=>(+v).toFixed(1)+"k"},
+  {k:"perOut", label:"Output per turn", min:0.1, max:10, step:0.1, fmt:v=>(+v).toFixed(1)+"k"}
+];
+const MIX_SLIDERS = [
+  {k:"read", label:"Cache reads", min:0, max:99.5, step:0.5, fmt:v=>(+v).toFixed(1)+"%"},
+  {k:"write", label:"Cache writes", min:0, max:50, step:0.5, fmt:v=>(+v).toFixed(1)+"%"},
+  {k:"output", label:"Output", min:0, max:50, step:0.5, fmt:v=>(+v).toFixed(1)+"%"}
+];
+const PRESETS = {
+  session:[
+    {label:"Short task · 10 turns", p:{turns:10, start:20, perIn:2, perOut:1}},
+    {label:"Long agentic · 50 turns", p:{turns:50, start:20, perIn:2, perOut:1}},
+    {label:"Marathon · 200 turns", p:{turns:200, start:20, perIn:2, perOut:1}}
+  ],
+  mix:[
+    {label:"No caching", p:{read:0, write:0, output:10}},
+    {label:"Typical chat", p:{read:85, write:5, output:5}},
+    {label:"Long agentic", p:{read:95, write:2, output:2}}
+  ]
+};
+const DEF = {read:95, write:2, output:2, ttl:"5m", turns:50, start:20, perIn:2, perOut:1};
+const clone = o => JSON.parse(JSON.stringify(o));
+
+const state = {
+  mode:"session", sync:true, us:false, adv:false, metric:"ratio",
+  shared: clone(DEF),
+  lanes:[
+    {id:1, slot:1, model:"opus55", focus:true, params:clone(DEF)},
+    {id:2, slot:2, model:"son55", params:clone(DEF)},
+    {id:3, slot:3, model:"opus5", params:clone(DEF)}
+  ],
+  nextId:4
+};
+
+const $ = s => document.querySelector(s);
+const fmt$ = v => v>=10 ? "$"+v.toFixed(1) : v>=1 ? "$"+v.toFixed(2) : "$"+v.toFixed(3);
+const fmtX = v => v.toFixed(2)+"×";
+const pct = v => (v*100).toFixed(1)+"%";
+const fmtK = k => k>=1000 ? (k/1000).toFixed(2)+"M" : Math.round(k)+"k";
+const laneColor = l => "var(--l"+l.slot+")";
+
+function eff(l){ return state.sync ? state.shared : l.params; }
+function scopeParams(scope){ return scope==="shared" ? state.shared : state.lanes.find(l=>String(l.id)===String(scope)).params; }
+function focusLane(){ return state.lanes.find(l=>l.focus); }
+function others(){ return state.lanes.filter(l=>!l.focus); }
+
+function tokens(p){
+  if(state.mode==="mix"){
+    const inp = Math.max(0, 100-p.read-p.write-p.output);
+    return {read:p.read, write:p.write, input:inp, output:p.output};
+  }
+  const T=p.turns, S=p.start, u=p.perIn, o=p.perOut;
+  const read = T<2 ? 0 : (T-1)*S + u*(T-1)*T/2 + o*(T-2)*(T-1)/2;
+  return {read, write:S+u+(T-1)*(u+o), input:0, output:T*o};
+}
+function price(key, tok, ttl){
+  const m = MODELS[key];
+  const tot = (tok.read+tok.write+tok.input+tok.output) || 1;
+  const mult = state.us && m.geo ? 1.1 : 1;
+  const c = {
+    read: tok.read*m.read/tot*mult,
+    write: tok.write*(ttl==="1h"?m.w1:m.w5)/tot*mult,
+    input: tok.input*m.in/tot*mult,
+    output: tok.output*m.out/tot*mult
+  };
+  c.total = c.read+c.write+c.input+c.output;
+  return c;
+}
+function withX(p, x){
+  const q = clone(p);
+  if(state.mode==="session"){ q.turns = Math.max(1, Math.round(x)); return q; }
+  const inp = Math.max(0, 100-p.read-p.write-p.output);
+  const rest = p.write+p.output+inp;
+  if(rest<=0){ q.read=x; q.write=0; q.output=100-x; return q; }
+  q.read = x; q.write = (100-x)*p.write/rest; q.output = (100-x)*p.output/rest;
+  return q;
+}
+function laneCost(l, x){
+  let p = eff(l); if(x!=null) p = withX(p, x);
+  return price(l.model, tokens(p), p.ttl);
+}
+function currentX(l){ const p = eff(l); return state.mode==="session" ? p.turns : p.read; }
+
+/* ---------- building ---------- */
+function panelHTML(scope){
+  const p = scopeParams(scope);
+  const defs = state.mode==="session" ? SESSION_SLIDERS : MIX_SLIDERS;
+  const sliders = defs.map(s=>`
+    <div class="slider">
+      <div class="slider-head"><label for="${scope}-${s.k}">${s.label}</label><output data-vs="${scope}" data-vk="${s.k}"></output></div>
+      <input type="range" id="${scope}-${s.k}" data-scope="${scope}" data-key="${s.k}" min="${s.min}" max="${s.max}" step="${s.step}" value="${p[s.k]}">
+    </div>`).join("");
+  const ttl = `<fieldset class="ttl"><legend>Cache writes last</legend>
+      <label><input type="radio" id="${scope}-ttl5" name="${scope}-ttl" data-scope="${scope}" data-ttl value="5m" ${p.ttl==="5m"?"checked":""}> 5 minutes</label>
+      <label><input type="radio" id="${scope}-ttl1" name="${scope}-ttl" data-scope="${scope}" data-ttl value="1h" ${p.ttl==="1h"?"checked":""}> 1 hour</label></fieldset>`;
+  return `<div class="sliders">${sliders}</div>${state.adv?ttl:""}<p class="derived" data-derived="${scope}"></p>`;
+}
+function buildShared(){
+  const el = $("#shared-panel");
+  const show = state.sync && state.adv;
+  el.hidden = !show;
+  if(!show){ el.innerHTML=""; return; }
+  const sub = state.mode==="session"
+    ? "Describe one session. Every turn re-reads the cached history, writes the new tokens to cache, and produces output."
+    : "Set the share of all tokens in each billing category. Whatever is left is fresh, uncached input.";
+  el.innerHTML = `<div class="panel-head"><h3>Session settings</h3><p>${sub}</p></div>${panelHTML("shared")}`;
+}
+function buildPresets(){
+  $("#presets").innerHTML = PRESETS[state.mode].map((pr,i)=>`<button type="button" class="chip" data-preset="${i}" aria-pressed="false">${pr.label}</button>`).join("")
+    + `<span class="preset-custom" id="preset-custom" hidden>Custom settings</span>`;
+}
+function markPresets(){
+  const targets = state.sync ? [state.shared] : state.lanes.map(l=>l.params);
+  let any = false;
+  document.querySelectorAll("[data-preset]").forEach(b=>{
+    const pr = PRESETS[state.mode][+b.dataset.preset].p;
+    const on = targets.every(t=>Object.keys(pr).every(k=>Math.abs(+t[k]-pr[k])<1e-9));
+    b.setAttribute("aria-pressed", on);
+    if(on) any = true;
+  });
+  const c = document.getElementById("preset-custom"); if(c) c.hidden = any;
+}
+function buildLanes(){
+  const el = $("#lanes");
+  const nOthers = others().length;
+  let h = state.lanes.map(l=>{
+    const top = l.focus
+      ? `<span class="lane-name">${MODELS[l.model].name}</span>`
+      : `<label for="lane-model-${l.id}" style="position:absolute;left:-9999px">Model</label>
+         <select id="lane-model-${l.id}" data-lane-model="${l.id}">${ORDER.filter(k=>k!=="opus55").map(k=>`<option value="${k}" ${k===l.model?"selected":""}>${MODELS[k].name}</option>`).join("")}</select>
+         ${nOthers>1?`<button type="button" class="icon-btn" data-remove="${l.id}" aria-label="Remove ${MODELS[l.model].name}">Remove</button>`:""}`;
+    const params = state.sync ? "" : `<details open><summary>Workload for this model</summary>${panelHTML(l.id)}</details>`;
+    return `<article class="lane ${l.focus?"is-focus":""}" data-lane="${l.id}" style="--lc:${laneColor(l)}">
+      <div class="lane-top">${top}</div>
+      <div class="lane-cost"><span class="big" data-out="cost-${l.id}"></span><span class="unit">per MTok processed</span></div>
+      <dl class="comps" data-out="comps-${l.id}"></dl>
+      <div class="bar" data-out="bar-${l.id}"></div>
+      ${l.focus?"":`<div class="lane-ratio cmp" data-out="ratio-${l.id}"></div>`}
+      ${params}
+    </article>`;
+  }).join("");
+  if(state.lanes.length<4) h += `<button type="button" class="add-lane" id="add-lane">+ Add a model</button>`;
+  el.innerHTML = h;
+}
+function buildPriceTable(){
+  const rows = ORDER.map(k=>{ const m=MODELS[k]; const hl = k==="opus55"||k==="son55";
+    return `<tr><td><span class="${hl?"hl-name":""}">${m.name}</span>${m.note?`<span class="note">${m.note}</span>`:""}</td>
+      <td class="${hl?"hl":""}">$${m.read.toFixed(2)}</td><td>$${m.in}</td><td>$${m.out}</td><td>$${m.w5}</td><td>$${m.w1}</td></tr>`; }).join("");
+  $("#price-table").innerHTML = `<thead><tr><th>Model</th><th>Cache read</th><th>Input</th><th>Output</th><th>5m write</th><th>1h write</th></tr></thead><tbody>${rows}</tbody>`;
+}
+function rebuild(){
+  document.querySelectorAll(".adv").forEach(el=>el.hidden=!state.adv);
+  $("#adv-toggle").checked = state.adv;
+  $("#sync-toggle").checked = state.sync;
+  $("#us-toggle").checked = state.us;
+  document.querySelectorAll("[data-mode]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.mode===state.mode));
+  document.querySelectorAll("[data-metric]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.metric===state.metric));
+  buildShared(); buildPresets(); buildLanes(); update();
+}
+
+/* ---------- updating ---------- */
+function update(){
+  const defs = state.mode==="session" ? SESSION_SLIDERS : MIX_SLIDERS;
+  document.querySelectorAll("output[data-vs]").forEach(o=>{
+    const p = scopeParams(o.dataset.vs); const d = defs.find(s=>s.k===o.dataset.vk);
+    if(d) o.textContent = d.fmt(p[d.k]);
+  });
+  document.querySelectorAll("input[data-key]").forEach(inp=>{
+    const p = scopeParams(inp.dataset.scope);
+    if(document.activeElement!==inp && +inp.value!==+p[inp.dataset.key]) inp.value = p[inp.dataset.key];
+  });
+  document.querySelectorAll("[data-derived]").forEach(el=>{
+    const p = scopeParams(el.dataset.derived); const t = tokens(p);
+    const tot = t.read+t.write+t.input+t.output || 1;
+    if(state.mode==="session"){
+      const last = p.start + (p.turns-1)*(p.perIn+p.perOut) + p.perIn;
+      el.textContent = `Mix: cache reads ${pct(t.read/tot)} · cache writes ${pct(t.write/tot)} · output ${pct(t.output/tot)}. ${fmtK(tot)} tokens processed; context reaches ${fmtK(last)} tokens on the last turn.`;
+    } else {
+      el.textContent = `Fresh (uncached) input: ${(t.input).toFixed(1)}% of tokens.`;
+    }
+  });
+
+  const focus = focusLane();
+  const fCost = laneCost(focus).total;
+  state.lanes.forEach(l=>{
+    const c = laneCost(l);
+    const q = s => document.querySelector(`[data-out="${s}-${l.id}"]`);
+    q("cost").textContent = fmt$(c.total);
+    let rh;
+    if(!l.focus){
+      const r = fCost/c.total;
+      const pctDiff = v => Math.round(Math.abs(v-1)*100);
+      const costTxt = Math.abs(r-1)<0.005 ? ["the same",""] : [pctDiff(r)+"%", r>1?"more":"less"];
+      const u = 1/r;
+      const useTxt = Math.abs(u-1)<0.005 ? ["the same","usage per $"] : [pctDiff(u)+"%", u>1?"more usage per $":"less usage per $"];
+      rh = `<div class="row"><span class="sub">Opus 5.5 costs</span><span class="pill ${r>1.005?"worse":r<0.995?"cheaper":""}">${costTxt[0]}</span><span class="sub">${costTxt[1]}</span></div>
+            <div class="row"><span class="sub">Opus 5.5 gives</span><span class="pill ${u>1.005?"cheaper":u<0.995?"worse":""}">${useTxt[0]}</span><span class="sub">${useTxt[1]}</span></div>`;
+    }
+    if(!l.focus) q("ratio").innerHTML = rh;
+    const segs = [["read",30,"Cache reads"],["write",55,"Cache writes"],["input",78,"Fresh input"],["output",100,"Output"]];
+    q("bar").innerHTML = segs.map(([k,s])=> c[k]>0 ? `<span style="width:${c[k]/c.total*100}%;background:${s===100?laneColor(l):`color-mix(in srgb, ${laneColor(l)} ${s}%, var(--surface))`}"></span>` : "").join("");
+    q("comps").innerHTML = segs.filter(([k])=>c[k]>0.00005 || k!=="input").map(([k,s,lab])=>
+      `<dt><span class="sw" style="background:${s===100?laneColor(l):`color-mix(in srgb, ${laneColor(l)} ${s}%, var(--surface))`}"></span><span class="lbl">${lab}</span></dt><dd>${fmt$(c[k])} · ${pct(c[k]/c.total)}</dd>`).join("");
+  });
+  markPresets(); renderChart(); renderMeters();
+}
+
+/* ---------- chart ---------- */
+const CH = {W:760, H:390, M:{l:74, r:20, t:16, b:46}};
+let geom = null;
+function renderChart(){
+  const svgEl = $("#chart");
+  const fs = Math.max(11.5, 13 * CH.W / (svgEl.clientWidth || CH.W));
+  svgEl.style.setProperty("--axis-fs", fs.toFixed(2)+"px");
+  CH.M.l = Math.round(16 + 3.9*fs); CH.M.b = Math.round(2.2*fs + 16); CH.fs = fs;
+  const {W,H,M} = CH;
+  const session = state.mode==="session";
+  const x0 = session?1:0, x1 = session?250:99;
+  const focus = focusLane(), ratio = state.metric==="ratio";
+  const lanes = ratio ? others() : state.lanes;
+  const N = 150;
+  const series = lanes.map(l=>{
+    const pts=[];
+    for(let i=0;i<=N;i++){
+      let x = x0+(x1-x0)*i/N; if(session) x=Math.max(1,Math.round(x));
+      const c = laneCost(l,x).total;
+      pts.push([x, ratio ? laneCost(focus,x).total/c : c]);
+    }
+    return {l, pts};
+  });
+  const ys = series.flatMap(s=>s.pts.map(p=>p[1]));
+  let yScale, ticks, yLabel;
+  const pw = W-M.l-M.r, ph = H-M.t-M.b;
+  if(ratio){
+    const yMax = Math.max(2.5, Math.ceil(Math.max(...ys)*2 - 1e-9)/2);
+    const step = yMax<=4 ? 0.5 : 1;
+    ticks=[]; for(let v=0; v<=yMax+1e-9; v+=step) ticks.push(+v.toFixed(2));
+    yScale = y => M.t + ph - (y/yMax)*ph;
+    yLabel = v => v.toFixed(1)+"×";
+  } else {
+    const lo = Math.pow(10, Math.floor(Math.log10(Math.min(...ys))));
+    const hi = Math.pow(10, Math.ceil(Math.log10(Math.max(...ys))));
+    const L0=Math.log10(lo), L1=Math.log10(hi);
+    yScale = y => M.t + ph - (Math.log10(y)-L0)/(L1-L0)*ph;
+    ticks=[]; for(let d=lo; d<=hi*1.0001; d*=10){ [1,2,5].forEach(f=>{ const v=d*f; if(v<=hi*1.0001) ticks.push(v); }); }
+    yLabel = v => v>=1 ? "$"+v : "$"+v.toFixed(v<0.1?2:1);
+  }
+  const xScale = x => M.l + (x-x0)/(x1-x0)*pw;
+  const xt = session ? [1,50,100,150,200,250] : [0,20,40,60,80,99];
+  let s = "";
+  ticks.forEach(v=>{ const y=yScale(v);
+    s += `<line x1="${M.l}" x2="${W-M.r}" y1="${y}" y2="${y}" stroke="var(--rule)" stroke-width="1"/>`;
+    s += `<text x="${M.l-8}" y="${y+4}" text-anchor="end" fill="var(--ink-3)">${yLabel(v)}</text>`; });
+  xt.forEach(v=>{ const x=xScale(v);
+    s += `<line x1="${x}" x2="${x}" y1="${H-M.b}" y2="${H-M.b+5}" stroke="var(--ink-3)"/>`;
+    s += `<text x="${x}" y="${H-M.b+fs+8}" text-anchor="middle" fill="var(--ink-3)">${session?v:v+"%"}</text>`; });
+  s += `<line x1="${M.l}" x2="${W-M.r}" y1="${H-M.b}" y2="${H-M.b}" stroke="var(--ink-3)"/>`;
+  s += `<text x="${M.l+pw/2}" y="${H-8}" text-anchor="middle" fill="var(--ink-2)">${session?"Turns in the session":"Share of tokens that are cache reads"}</text>`;
+  const yTitle = ratio ? "Opus 5.5 Relative Cost" : "Cost per million tokens";
+  s += `<text transform="translate(${(0.9*fs).toFixed(1)} ${M.t+ph/2}) rotate(-90)" text-anchor="middle" fill="var(--ink-2)">${yTitle}</text>`;
+  if(ratio){ const y=yScale(1);
+    s += `<line x1="${M.l}" x2="${W-M.r}" y1="${y}" y2="${y}" stroke="var(--ink-2)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+    s += `<text x="${M.l+8}" y="${y-6}" text-anchor="start" fill="var(--ink-2)" stroke="var(--surface)" stroke-width="4" paint-order="stroke" stroke-linejoin="round">Same cost as Opus 5.5</text>`; }
+  if(state.sync){
+    const cx = xScale(Math.min(x1, currentX(state.lanes[0])));
+    s += `<line x1="${cx}" x2="${cx}" y1="${M.t}" y2="${H-M.b}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"/>`;
+    s += `<text x="${cx+5}" y="${M.t+11}" fill="var(--accent)">current</text>`;
+  }
+  series.forEach(({l,pts})=>{
+    const d = pts.map((p,i)=>(i?"L":"M")+xScale(p[0]).toFixed(1)+" "+yScale(p[1]).toFixed(1)).join(" ");
+    s += `<path d="${d}" fill="none" stroke="${laneColor(l)}" stroke-width="${(!ratio&&l.focus)?3.4:2.6}" stroke-linejoin="round"/>`;
+  });
+  series.forEach(({l})=>{
+    const x = Math.min(x1, currentX(l));
+    const c = laneCost(l, x).total; const y = ratio ? laneCost(focus,x).total/c : c;
+    s += `<circle cx="${xScale(x)}" cy="${yScale(y)}" r="5" fill="${laneColor(l)}" stroke="var(--surface)" stroke-width="2"/>`;
+  });
+  s += `<line id="hover-line" x1="0" x2="0" y1="${M.t}" y2="${H-M.b}" stroke="var(--ink-3)" stroke-width="1" visibility="hidden"/>`;
+  s += `<rect x="${M.l}" y="${M.t}" width="${pw}" height="${ph}" fill="transparent" id="hit"/>`;
+  $("#chart").innerHTML = s;
+  geom = {x0,x1,xScale,session,ratio,focus,lanes};
+  $("#chart-legend").innerHTML = series.map(({l})=>`<span><i style="background:${laneColor(l)}"></i>${ratio?"Opus 5.5 vs "+MODELS[l.model].name:MODELS[l.model].name}</span>`).join("");
+  const sub = $("#chart-sub");
+  sub.textContent = ratio ? "" : "Cost per million tokens, on a log scale.";
+  sub.hidden = ratio;
+}
+function onHover(e){
+  if(!geom) return;
+  const svg = $("#chart"), r = svg.getBoundingClientRect();
+  const {W,M} = CH;
+  const px = (e.clientX-r.left)/r.width*W;
+  const tip = $("#tip"), line = $("#hover-line");
+  if(px<M.l || px>W-M.r){ tip.hidden=true; if(line) line.setAttribute("visibility","hidden"); return; }
+  let x = geom.x0 + (px-M.l)/(W-M.l-M.r)*(geom.x1-geom.x0);
+  if(geom.session) x = Math.max(1, Math.round(x));
+  const lx = geom.xScale(x);
+  line.setAttribute("x1",lx); line.setAttribute("x2",lx); line.setAttribute("visibility","visible");
+  let head;
+  if(geom.session){
+    const p = withX(eff(geom.focus), x); const t = tokens(p); const tot=t.read+t.write+t.input+t.output;
+    head = `Turn ${x} · cache reads ${pct(t.read/tot)}`;
+  } else head = `Cache reads ${x.toFixed(1)}%`;
+  const rows = geom.lanes.map(l=>{
+    const c = laneCost(l,x).total;
+    const name = MODELS[l.model].name;
+    let label = name, v = fmt$(c);
+    if(geom.ratio){
+      const r = laneCost(geom.focus,x).total/c;
+      if(r > 1.005){ label = `Premium over ${name}`; v = `+${Math.round((r-1)*100)}%`; }
+      else if(r < 0.995){ label = `More usage than ${name}`; v = `+${Math.round((1/r-1)*100)}%`; }
+      else { label = `Same cost as ${name}`; v = "0%"; }
+    }
+    return `<div class="t-row"><span><i style="background:${laneColor(l)}"></i>${label}</span><b>${v}</b></div>`;
+  }).join("");
+  tip.innerHTML = `<div class="t-head">${head}</div>${rows}`;
+  tip.hidden = false;
+  const wrap = $("#chart-wrap"); const wr = wrap.getBoundingClientRect();
+  const left = e.clientX - wr.left + wrap.scrollLeft;
+  const tw = tip.offsetWidth;
+  tip.style.left = (left + 14 + tw > wrap.scrollLeft + wr.width ? left - tw - 14 : left + 14) + "px";
+}
+
+/* ---------- meters ---------- */
+function renderMeters(){
+  const focus = focusLane(); const fName = MODELS[focus.model].name;
+  const labs = {read:"cache reads", write:"cache writes", input:"fresh input", output:"output"};
+  const html = others().map(l=>{
+    const name = MODELS[l.model].name;
+    const p = eff(l), t = tokens(p);
+    const fc = price(focus.model,t,p.ttl), oc = price(l.model,t,p.ttl);
+    const gap = fc.total-oc.total;
+    let txt;
+    if(gap>0.000001){
+      const d = {read:fc.read-oc.read, write:fc.write-oc.write, input:fc.input-oc.input, output:fc.output-oc.output};
+      const pos = Object.keys(d).filter(k=>d[k]>0.0000001);
+      const ps = pos.reduce((a,k)=>a+d[k],0);
+      const parts = pos.map(k=>[k,Math.round(d[k]/ps*100)]).filter(([,v])=>v>0).map(([k,v])=>`${labs[k]} ${v}%`).join(" · ");
+      txt = `${fName} costs ${fmt$(gap)} more per MTok. The extra comes from ${parts}.`;
+    } else {
+      txt = `${fName} costs ${fmt$(-gap)} less per MTok, so there is no gap to close.`;
+    }
+    return `<li><i style="background:${laneColor(l)}"></i><span><b>vs ${name}${state.sync?"":" (this model's workload)"}:</b> ${txt}</span></li>`;
+  }).join("");
+  $("#meters").innerHTML = html;
+}
+
+/* ---------- events ---------- */
+document.addEventListener("input", e=>{
+  const el = e.target;
+  if(el.dataset && el.dataset.key){
+    const p = scopeParams(el.dataset.scope); const k = el.dataset.key;
+    let v = parseFloat(el.value);
+    if(state.mode==="mix" && ["read","write","output"].includes(k)){
+      const others = ["read","write","output"].filter(x=>x!==k).reduce((a,x)=>a+p[x],0);
+      v = Math.min(v, 100-others); el.value = v;
+    }
+    p[k] = v; update();
+  }
+});
+document.addEventListener("change", e=>{
+  const el = e.target;
+  if(el.dataset && el.dataset.ttl!==undefined){ scopeParams(el.dataset.scope).ttl = el.value; update(); }
+  else if(el.dataset && el.dataset.laneModel){ state.lanes.find(l=>l.id==el.dataset.laneModel).model = el.value; buildLanes(); update(); }
+  else if(el.id==="sync-toggle"){
+    state.sync = el.checked;
+    if(!state.sync) state.lanes.forEach(l=>{ l.params = clone(state.shared); });
+    rebuild();
+  }
+  else if(el.id==="us-toggle"){ state.us = el.checked; update(); }
+  else if(el.id==="adv-toggle"){
+    state.adv = el.checked;
+    if(!state.adv){
+      state.mode = "session"; state.sync = true; state.us = false;
+      state.shared = clone(DEF); state.lanes.forEach(l=>{ l.params = clone(DEF); });
+    }
+    rebuild();
+  }
+});
+document.addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  if(b.dataset.mode && b.dataset.mode!==state.mode){ state.mode = b.dataset.mode; rebuild(); }
+  else if(b.dataset.metric){ state.metric = b.dataset.metric; rebuild(); }
+  else if(b.dataset.preset!==undefined){
+    const pr = PRESETS[state.mode][+b.dataset.preset].p;
+    const targets = state.sync ? [state.shared] : state.lanes.map(l=>l.params);
+    targets.forEach(t=>Object.assign(t, pr));
+    update();
+  }
+  else if(b.dataset.remove){
+    const id = +b.dataset.remove;
+    state.lanes = state.lanes.filter(l=>l.id!==id);
+    buildLanes(); update();
+  }
+  else if(b.id==="add-lane"){
+    const used = state.lanes.map(l=>l.model);
+    const model = ORDER.find(k=>k!=="opus55" && !used.includes(k)) || "son46";
+    const slot = [1,2,3,4].find(s=>!state.lanes.some(l=>l.slot===s));
+    state.lanes.push({id:state.nextId++, slot, model, params:clone(state.shared)});
+    buildLanes(); update();
+  }
+});
+const svg = document.getElementById("chart");
+let rzT; window.addEventListener("resize", ()=>{ clearTimeout(rzT); rzT = setTimeout(renderChart, 120); });
+svg.addEventListener("pointermove", onHover);
+svg.addEventListener("pointerleave", ()=>{ $("#tip").hidden=true; const ln=$("#hover-line"); if(ln) ln.setAttribute("visibility","hidden"); });
+
+buildPriceTable();
+rebuild();
+
+/* ---------- preview jump links ---------- */
+document.querySelectorAll("[data-jump]").forEach(a=>a.addEventListener("click", e=>{
+  const t = document.getElementById(a.dataset.jump); if(!t) return;
+  e.preventDefault();
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  t.scrollIntoView({behavior: reduce ? "auto" : "smooth", block:"start"});
+}));
+
+/* ---------- theme toggle ---------- */
+(function(){
+  const root = document.documentElement, btn = document.getElementById("theme-toggle");
+  const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
+  const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  const current = () => root.getAttribute("data-theme") || (mq && mq.matches ? "dark" : "light");
+  function paint(){
+    const dark = current()==="dark";
+    btn.innerHTML = dark ? `${sun}<span>Light mode</span>` : `${moon}<span>Dark mode</span>`;
+    btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  }
+  try { const saved = localStorage.getItem("cost-model-theme"); if(saved==="light"||saved==="dark") root.setAttribute("data-theme", saved); } catch(e){}
+  btn.addEventListener("click", ()=>{
+    const next = current()==="dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("cost-model-theme", next); } catch(e){}
+    paint();
+  });
+  if(mq && mq.addEventListener) mq.addEventListener("change", paint);
+  new MutationObserver(paint).observe(root, {attributes:true, attributeFilter:["data-theme"]});
+  paint();
+})();
+})();
+</script>
+
+</body>
+</html>
