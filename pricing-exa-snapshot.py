@@ -5,7 +5,8 @@ from pathlib import Path
 from exa_py import Exa
 
 exa = Exa(os.environ["EXA_API_KEY"])
-out_dir = Path(__file__).parent
+out_dir = Path(__file__).parent / "pricing-snapshots"
+out_dir.mkdir(exist_ok=True)
 
 # Snapshot of the pricing page on the 1st of each month, June-October 2026
 for month in range(6, 11):
