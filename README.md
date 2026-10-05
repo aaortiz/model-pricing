@@ -2,6 +2,23 @@
 
 Saves point-in-time snapshots of the [Claude pricing page](https://platform.claude.com/docs/en/about-claude/pricing) using the [Exa](https://exa.ai) API, so you can see how model prices change month to month.
 
+The snapshot prices feed the [Agentic Session Cost Model](https://aaortiz.github.io/model-pricing/), an interactive page comparing what long agentic sessions cost on each Claude model.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/hero-dark.png">
+  <img alt="Agentic Session Cost Model: Opus 5.5's premium over Sonnet 5.5 shrinks from 100% to 22% as sessions get longer, and Opus 5.5 gives 67% more usage per dollar than Opus 5 in a 50-turn session" src="images/hero-light.png" width="688">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/chart-dark.png">
+  <img alt="Line chart of Opus 5.5's relative cost by session length: against Sonnet 5.5 it falls from 2× at one turn to 1.5× at 50 turns and 1.22× at 200 turns; against Opus 5 it stays below 1×" src="images/chart-light.png" width="640">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/cards-dark.png">
+  <img alt="Cost cards for a 50-turn session: Opus 5.5 at $0.573 per MTok processed, Sonnet 5.5 at $0.382 and Opus 5 at $0.955, each split into cache reads, cache writes and output" src="images/cards-light.png" width="688">
+</picture>
+
 ## Requirements
 
 - Python 3.9+
