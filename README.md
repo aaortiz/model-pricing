@@ -10,8 +10,8 @@ The snapshot prices feed the [Agentic Session Cost Model](https://aaortiz.github
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/chart-dark.png">
-  <img alt="Line chart of Opus 5.5's relative cost by session length: against Sonnet 5.5 it falls from 2× at one turn to 1.5× at 50 turns and 1.22× at 200 turns; against Opus 5 it stays below 1×" src="images/chart-light.png" width="640">
+  <source media="(prefers-color-scheme: dark)" srcset="images/chart-sweep-dark.gif">
+  <img alt="Cursor sweeping from 50 to 200 turns as Opus 5.5's premium over Sonnet 5.5 falls from 50% to 22%" src="images/chart-sweep-light.gif" width="640">
 </picture>
 
 <picture>
